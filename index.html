@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isaiify - Tamil Online Music App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #121212;
+            --bg-card: #1e1e1e;
+            --accent: #ff334b;
+            --accent-hover: #ff4d61;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --border: #262626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1250px;
+            height: 85vh;
+            min-height: 680px;
+            background: var(--bg-secondary);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            grid-template-rows: 1fr 90px;
+            grid-template-areas: 
+                "sidebar main"
+                "player player";
+            position: relative;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "main"
+                    "player";
+                height: 95vh;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: #000000;
+            padding: 24px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-right: 1px solid var(--border);
+        }
+
+        .logo-area {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding-left: 8px;
+        }
+
+        .logo-area i {
+            color: var(--accent);
+        }
+
+        .nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav-category {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding-left: 12px;
+            margin-bottom: 8px;
+            margin-top: 15px;
+        }
+
+        .nav-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-links li a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 11px 14px;
+            border-radius: 8px;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .nav-links li.active a {
+            color: var(--text-main);
+            background: var(--bg-card);
+            font-weight: 600;
+        }
+
+        .nav-links li a:hover {
+            color: var(--text-main);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .main-content {
+            grid-area: main;
+            overflow-y: auto;
+            padding: 30px;
+            position: relative;
+        }
+
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        /* LOGIN VIEW */
+        #login-view {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            text-align: center;
+        }
+
+        .login-box {
+            background: var(--bg-card);
+            padding: 40px;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 380px;
+            border: 1px solid var(--border);
+        }
+
+        .login-box h2 {
+            margin-bottom: 6px;
+            font-size: 22px;
+        }
+
+        .login-box p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .banner {
+            background: linear-gradient(135deg, #ff334b, #ff7525);
+            padding: 25px 30px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 13px 16px 13px 44px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-container i {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 18px;
+        }
+
+        .music-card {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .music-card:hover {
+            background: #252525;
+            border-color: var(--border);
+            transform: translateY(-3px);
+        }
+
+        .music-card img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .music-card h4 {
+            font-size: 14px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .music-card p {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #player-ui-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+
+        .player-artwork-large {
+            width: 220px;
+            height: 220px;
+            border-radius: 14px;
+            object-fit: cover;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            margin-bottom: 20px;
+        }
+
+        .playing-info h2 {
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .playing-info p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .bottom-player {
+            grid-area: player;
+            background: #0d0d0d;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .track-details {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 250px;
+        }
+
+        .track-details img {
+            width: 48px;
+            height: 48px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .track-meta h4 {
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .track-meta p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .player-controls-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            width: 45%;
+        }
+
+        .control-icons {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        .control-icons .main-play {
+            font-size: 15px;
+            background: var(--text-main);
+            color: #000;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .playback-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .progress-line {
+            flex: 1;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--text-main);
+            border-radius: 2px;
+        }
+
+        .player-extras {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+        }
+
+        .loading-text {
+            color: var(--text-muted);
+            font-size: 13px;
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="audio-element"></audio>
+
+    <div class="app-container">
+        
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div>
+                <div class="logo-area">
+                    <i class="fa-solid fa-compact-disc"></i> Isaiify
+                </div>
+                
+                <div class="nav-group">
+                    <span class="nav-category">Menu</span>
+                    <ul class="nav-links">
+                        <li class="active" onclick="switchView('discover-view', this)"><a><i class="fa-solid fa-house"></i> Home</a></li>
+                        <li onclick="switchView('player-ui-view', this)"><a><i class="fa-solid fa-radio"></i> Now Playing</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div>
+                <ul class="nav-links">
+                    <li onclick="switchView('login-view', this)"><a><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+
+            <!-- LOGIN VIEW -->
+            <div id="login-view" class="view-section active">
+                <div class="login-box">
+                    <h2>Welcome to Isaiify</h2>
+                    <p>Enter your name to start listening</p>
+                    <form onsubmit="handleLogin(event)">
+                        <div class="input-group">
+                            <label>Your Name</label>
+                            <input type="text" id="username-input" placeholder="e.g. Joshua" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Get Started</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- DISCOVER & SEARCH VIEW -->
+            <div id="discover-view" class="view-section">
+                <div class="banner">
+                    <div>
+                        <h1 id="welcome-banner-title">Vanakkam!</h1>
+                        <p>Search and stream live Tamil music online.</p>
+                    </div>
+                </div>
+
+                <div class="search-container">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-input" placeholder="Search Tamil songs or artists..." oninput="searchMusic(this.value)">
+                </div>
+
+                <div class="section-title">Trending Hits</div>
+                <div id="track-grid" class="card-grid">
+                    <div class="loading-text">Type above to search songs...</div>
+                </div>
+            </div>
+
+            <!-- NOW PLAYING VIEW -->
+            <div id="player-ui-view" class="view-section">
+                <img id="large-artwork" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500" alt="Artwork" class="player-artwork-large">
+                <div class="playing-info">
+                    <h2 id="large-title">Select a Track</h2>
+                    <p id="large-artist">Artist Name</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM PLAYER -->
+        <div class="bottom-player">
+            <div class="track-details">
+                <img id="mini-artwork" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100" alt="Mini">
+                <div class="track-meta">
+                    <h4 id="mini-title">No track selected</h4>
+                    <p id="mini-artist">-</p>
+                </div>
+            </div>
+
+            <div class="player-controls-center">
+                <div class="control-icons">
+                    <i class="fa-solid fa-shuffle"></i>
+                    <i class="fa-solid fa-backward-step"></i>
+                    <div class="main-play" id="play-btn" onclick="togglePlay()"><i class="fa-solid fa-play" id="play-icon"></i></div>
+                    <i class="fa-solid fa-forward-step"></i>
+                    <i class="fa-solid fa-repeat"></i>
+                </div>
+                <div class="playback-bar">
+                    <span id="current-time">0:00</span>
+                    <div class="progress-line" id="progress-container"><div class="progress-fill" id="progress-fill"></div></div>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <div class="player-extras">
+                <i class="fa-solid fa-volume-high"></i>
+                <div class="progress-line" style="width: 70px;"><div class="progress-fill" style="width: 70%;"></div></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC WITH AUTO-FALLBACK -->
+    <script>
+        const audioElement = document.getElementById('audio-element');
+        const playBtn = document.getElementById('play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const trackGrid = document.getElementById('track-grid');
+        
+        let currentTrackData = null;
+
+        // Backup tracks list incase API limit is reached
+        const fallbackCatalog = [
+            {
+                name: "Tamil Melody Lo-Fi",
+                artist: "Isaiify Special",
+                image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+            },
+            {
+                name: "Kuthu Beats Remix",
+                artist: "DJ Tamil",
+                image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            },
+            {
+                name: "Cyberpunk Synthwave",
+                artist: "Electronic Beats",
+                image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300",
+                audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+            }
+        ];
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const name = document.getElementById('username-input').value.trim();
+            if (name) {
+                document.getElementById('welcome-banner-title').innerText = `Vanakkam, ${name}!`;
+                switchView('discover-view', document.querySelectorAll('.nav-links li')[0]);
+                searchMusic('Tamil Hits');
+            }
+        }
+
+        let searchTimer;
+        function searchMusic(query) {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(async () => {
+                const searchQuery = query.trim() || 'Tamil Hits';
+                trackGrid.innerHTML = `<div class="loading-text">Searching for "${searchQuery}"...</div>`;
+                
+                try {
+                    const response = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(searchQuery)}`);
+                    const data = await response.json();
+                    
+                    if (data && data.success && data.data && data.data.results && data.data.results.length > 0) {
+                        displayApiTracks(data.data.results);
+                    } else {
+                        // If API returns empty, load fallback
+                        displayFallbackTracks();
+                    }
+                } catch (error) {
+                    console.warn('API Limit Reached or Network Error. Switching to backup catalog.');
+                    displayFallbackTracks();
+                }
+            }, 500);
+        }
+
+        function displayApiTracks(tracks) {
+            trackGrid.innerHTML = '';
+            tracks.forEach(track => {
+                const imageUrl = track.image && track.image[2] ? track.image[2].url : 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300';
+                
+                let audioUrl = '';
+                if (track.downloadUrl) {
+                    const highQuality = track.downloadUrl.find(item => item.quality === '320kbps');
+                    audioUrl = highQuality ? highQuality.url : (track.downloadUrl[track.downloadUrl.length - 1]?.url || '');
+                }
+
+                const artistName = track.artists && track.artists.primary ? track.artists.primary.map(a => a.name).join(', ') : 'Tamil Artist';
+
+                const card = document.createElement('div');
+                card.className = 'music-card';
+                card.innerHTML = `
+                    <img src="${imageUrl}" alt="${track.name}">
+                    <h4>${track.name}</h4>
+                    <p>${artistName}</p>
+                `;
+                
+                card.onclick = () => {
+                    if (audioUrl) {
+                        playTrack({
+                            name: track.name,
+                            artist: artistName,
+                            image: imageUrl,
+                            audio: audioUrl
+                        });
+                    } else {
+                        alert('Audio stream link unavailable for this track.');
+                    }
+                };
+                trackGrid.appendChild(card);
+            });
+        }
+
+        function displayFallbackTracks() {
+            trackGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; font-size: 12px; color: var(--accent); margin-bottom: 10px;">API Limit Reached - Showing Backup Streaming Playlist</div>`;
+            fallbackCatalog.forEach(track => {
+                const card = document.createElement('div');
+                card.className = 'music-card';
+                card.innerHTML = `
+                    <img src="${track.image}" alt="${track.name}">
+                    <h4>${track.name}</h4>
+                    <p>${track.artist}</p>
+                `;
+                card.onclick = () => playTrack(track);
+                trackGrid.appendChild(card);
+            });
+        }
+
+        function playTrack(track) {
+            currentTrackData = track;
+            audioElement.src = track.audio;
+            audioElement.play().catch(e => {
+                alert("Playback blocked by browser. Please tap the play button below.");
+            });
+
+            document.getElementById('mini-title').innerText = track.name;
+            document.getElementById('mini-artist').innerText = track.artist;
+            document.getElementById('mini-artwork').src = track.image;
+
+            document.getElementById('large-title').innerText = track.name;
+            document.getElementById('large-artist').innerText = `${track.artist} • Isaiify`;
+            document.getElementById('large-artwork').src = track.image;
+
+            playIcon.className = "fa-solid fa-pause";
+        }
+
+        function togglePlay() {
+            if (!currentTrackData) return;
+            if (audioElement.paused) {
+                audioElement.play();
+                playIcon.className = "fa-solid fa-pause";
+            } else {
+                audioElement.pause();
+                playIcon.className = "fa-solid fa-play";
+            }
+        }
+
+        audioElement.ontimeupdate = () => {
+            if (audioElement.duration) {
+                const progressPercent = (audioElement.currentTime / audioElement.duration) * 100;
+                document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+
+                document.getElementById('current-time').innerText = formatTime(audioElement.currentTime);
+                document.getElementById('duration').innerText = formatTime(audioElement.duration);
+            }
+        };
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function switchView(viewId, element) {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            if (element) {
+                document.querySelectorAll('.nav-links li').forEach(li => li.classList.remove('active'));
+                element.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
