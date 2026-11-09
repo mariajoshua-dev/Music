@@ -389,6 +389,26 @@
             background: var(--accent);
         }
 
+        .card-delete-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 51, 75, 0.8);
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            transition: 0.2s;
+        }
+
+        .card-delete-btn:hover {
+            background: #ff1a35;
+        }
+
         /* NOW PLAYING VIEW */
         #player-ui-view {
             display: flex;
@@ -457,7 +477,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            width: 40%;
+            width: 35%;
             cursor: pointer;
         }
 
@@ -490,7 +510,7 @@
             flex-direction: column;
             align-items: center;
             gap: 5px;
-            width: 50%;
+            width: 45%;
         }
 
         .control-icons {
@@ -539,18 +559,35 @@
             border-radius: 2px;
         }
 
+        /* VOLUME CONTROLS */
         .player-extras {
-            display: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            width: 20%;
+            justify-content: flex-end;
+            font-size: 13px;
         }
 
-        @media(min-width: 768px) {
-            .player-extras {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                color: var(--text-muted);
-                width: 15%;
-            }
+        .player-extras i {
+            cursor: pointer;
+        }
+
+        .volume-slider-container {
+            width: 70px;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .volume-fill {
+            width: 100%;
+            height: 100%;
+            background: var(--text-main);
+            border-radius: 2px;
         }
 
         .loading-text {
@@ -693,8 +730,10 @@
             </div>
 
             <div class="player-extras">
-                <i class="fa-solid fa-volume-high"></i>
-                <div class="progress-line" style="width: 70px;"><div class="progress-fill" style="width: 70%;"></div></div>
+                <i class="fa-solid fa-volume-high" id="volume-icon" onclick="toggleMute()"></i>
+                <div class="volume-slider-container" id="volume-container" onclick="adjustVolume(event)">
+                    <div class="volume-fill" id="volume-fill"></div>
+                </div>
             </div>
         </div>
 
@@ -711,6 +750,7 @@
         let currentPlaylist = [];
         let currentIndex = 0;
         let currentTrackData = null;
+        let lastVolume = 1;
 
         // --- INDEXEDDB SETUP FOR PERMANENT OFFLINE STORAGE ---
         let db;
@@ -752,6 +792,17 @@
                 request.onerror = (e) => reject(e.target.error);
             });
         }
+
+        function deleteSongFromDB(songId) {
+            return new Promise((resolve, reject) => {
+                if (!db) return reject("DB not ready");
+                const transaction = db.transaction(['savedSongs'], 'readwrite');
+                const store = transaction.objectStore('savedSongs');
+                const request = store.delete(songId);
+                request.onsuccess = () => resolve(true);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
         // -----------------------------------------------------
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -763,6 +814,7 @@
             } else {
                 switchView('login-view', null);
             }
+            audioElement.volume = 1; // default full volume
         });
 
         function handleLogin(event) {
@@ -794,7 +846,12 @@
                     const data = await response.json();
                     
                     if (data && data.results && data.results.length > 0) {
-                        currentPlaylist = data.results;
+                        currentPlaylist = data.results.map(track => ({
+                            trackName: track.trackName,
+                            artistName: track.artistName,
+                            artworkUrl100: track.artworkUrl100,
+                            previewUrl: track.previewUrl
+                        }));
                         displayOnlineTracks(currentPlaylist);
                     } else {
                         trackGrid.innerHTML = `<div class="loading-text">No songs found. Try another search!</div>`;
@@ -814,12 +871,11 @@
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 
-                // Convert local file to Blob to store safely in IndexedDB
                 const localTrack = {
                     trackName: file.name.replace(/\.[^/.]+$/, ""),
                     artistName: "Local Device File",
                     artworkUrl100: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300",
-                    audioBlob: file // Store raw file blob for permanent local retention
+                    audioBlob: file
                 };
 
                 try {
@@ -892,33 +948,37 @@
                 const savedSongs = await getAllSavedSongsFromDB();
                 if (!savedSongs || savedSongs.length === 0) {
                     downloadsGrid.innerHTML = `<div class="loading-text">No saved songs found yet. Download or import tracks to see them here!</div>`;
+                    currentPlaylist = [];
                     return;
                 }
 
+                // Map saved songs into currentPlaylist so next/prev works seamlessly offline
+                currentPlaylist = savedSongs.map(song => ({
+                    trackName: song.trackName,
+                    artistName: song.artistName,
+                    artworkUrl100: song.artworkUrl100,
+                    previewUrl: URL.createObjectURL(song.audioBlob),
+                    dbId: song.id
+                }));
+
                 downloadsGrid.innerHTML = '';
-                savedSongs.forEach((song, index) => {
+                currentPlaylist.forEach((song, index) => {
                     const artworkUrl = song.artworkUrl100 || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300';
                     
                     const card = document.createElement('div');
                     card.className = 'music-card';
                     card.innerHTML = `
+                        <div class="card-delete-btn" onclick="event.stopPropagation(); deleteSavedSong(${song.dbId})" title="Delete Song">
+                            <i class="fa-solid fa-trash"></i>
+                        </div>
                         <img src="${artworkUrl}" alt="${song.trackName}">
                         <h4>${song.trackName}</h4>
                         <p>${song.artistName}</p>
                     `;
 
                     card.onclick = () => {
-                        // Create object URL from stored Blob
-                        const blobUrl = URL.createObjectURL(song.audioBlob);
-                        const playlistItem = {
-                            trackName: song.trackName,
-                            artistName: song.artistName,
-                            artworkUrl100: artworkUrl,
-                            previewUrl: blobUrl
-                        };
-                        currentPlaylist = [playlistItem];
-                        currentIndex = 0;
-                        playTrackByIndex(0);
+                        currentIndex = index;
+                        playTrackByIndex(currentIndex);
                     };
 
                     downloadsGrid.appendChild(card);
@@ -926,6 +986,18 @@
             } catch (err) {
                 console.error("Error loading downloads:", err);
                 downloadsGrid.innerHTML = `<div class="loading-text">Error loading saved songs.</div>`;
+            }
+        }
+
+        async function deleteSavedSong(songId) {
+            if (confirm("Are you sure you want to delete this song from your offline library?")) {
+                try {
+                    await deleteSongFromDB(songId);
+                    loadSavedDownloads(); // Refresh list
+                } catch (err) {
+                    console.error("Failed to delete song:", err);
+                    alert("Could not delete song.");
+                }
             }
         }
 
@@ -981,6 +1053,7 @@
             playTrackByIndex(currentIndex);
         }
 
+        // Auto play next song when current finishes
         audioElement.onended = () => {
             playNextTrack();
         };
@@ -1012,6 +1085,41 @@
             const clickPosition = (event.clientX - rect.left) / container.offsetWidth;
             if (audioElement.duration) {
                 audioElement.currentTime = clickPosition * audioElement.duration;
+            }
+        }
+
+        // Volume adjustment logic
+        function adjustVolume(event) {
+            const container = document.getElementById('volume-container');
+            const rect = container.getBoundingClientRect();
+            let clickPosition = (event.clientX - rect.left) / container.offsetWidth;
+            if (clickPosition < 0) clickPosition = 0;
+            if (clickPosition > 1) clickPosition = 1;
+
+            audioElement.volume = clickPosition;
+            document.getElementById('volume-fill').style.width = `${clickPosition * 100}%`;
+
+            const icon = document.getElementById('volume-icon');
+            if (clickPosition === 0) {
+                icon.className = "fa-solid fa-volume-xmark";
+            } else if (clickPosition < 0.5) {
+                icon.className = "fa-solid fa-volume-low";
+            } else {
+                icon.className = "fa-solid fa-volume-high";
+            }
+        }
+
+        function toggleMute() {
+            const icon = document.getElementById('volume-icon');
+            if (audioElement.volume > 0) {
+                lastVolume = audioElement.volume;
+                audioElement.volume = 0;
+                document.getElementById('volume-fill').style.width = `0%`;
+                icon.className = "fa-solid fa-volume-xmark";
+            } else {
+                audioElement.volume = lastVolume || 1;
+                document.getElementById('volume-fill').style.width = `${audioElement.volume * 100}%`;
+                icon.className = audioElement.volume < 0.5 ? "fa-solid fa-volume-low" : "fa-solid fa-volume-high";
             }
         }
 
