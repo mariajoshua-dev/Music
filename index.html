@@ -146,11 +146,15 @@
             color: var(--accent);
         }
 
+        .mobile-header .nav-icons {
+            display: flex;
+            gap: 15px;
+        }
+
         .mobile-header i {
             font-size: 18px;
             color: var(--text-muted);
             cursor: pointer;
-            margin-left: 15px;
         }
 
         /* MAIN CONTENT */
@@ -365,7 +369,7 @@
             text-overflow: ellipsis;
         }
 
-        .card-download-btn {
+        .card-action-btn {
             position: absolute;
             top: 16px;
             right: 16px;
@@ -381,7 +385,7 @@
             transition: 0.2s;
         }
 
-        .card-download-btn:hover {
+        .card-action-btn:hover {
             background: var(--accent);
         }
 
@@ -570,10 +574,11 @@
         <!-- MOBILE HEADER -->
         <div class="mobile-header">
             <div><i class="fa-solid fa-compact-disc" style="color:var(--accent);"></i> Isaiify</div>
-            <div>
-                <i class="fa-solid fa-house" onclick="switchView('discover-view')"></i>
-                <i class="fa-solid fa-radio" onclick="switchView('player-ui-view')"></i>
-                <i class="fa-solid fa-right-from-bracket" onclick="handleLogout()"></i>
+            <div class="nav-icons">
+                <i class="fa-solid fa-house" onclick="switchView('discover-view', this)" title="Home"></i>
+                <i class="fa-solid fa-download" onclick="switchView('downloads-view', this); loadSavedDownloads();" title="Downloads"></i>
+                <i class="fa-solid fa-radio" onclick="switchView('player-ui-view', this)" title="Now Playing"></i>
+                <i class="fa-solid fa-right-from-bracket" onclick="handleLogout()" title="Logout"></i>
             </div>
         </div>
 
@@ -585,6 +590,7 @@
                 </div>
                 <ul class="nav-links">
                     <li class="active" onclick="switchView('discover-view', this)"><a><i class="fa-solid fa-house"></i> Home</a></li>
+                    <li onclick="switchView('downloads-view', this); loadSavedDownloads();"><a><i class="fa-solid fa-download"></i> Downloads</a></li>
                     <li onclick="switchView('player-ui-view', this)"><a><i class="fa-solid fa-radio"></i> Now Playing</a></li>
                 </ul>
             </div>
@@ -638,6 +644,15 @@
                 </div>
             </div>
 
+            <!-- DOWNLOADS & OFFLINE LOCAL LIBRARY VIEW -->
+            <div id="downloads-view" class="view-section">
+                <div class="section-title"><i class="fa-solid fa-download" style="color:var(--accent);"></i> Saved & Offline Songs</div>
+                <p style="color:var(--text-muted); font-size:12px; margin-bottom:15px;">Your locally imported and downloaded songs stay saved here permanently.</p>
+                <div id="downloads-grid" class="card-grid">
+                    <div class="loading-text">No saved songs found yet. Download or import tracks to see them here!</div>
+                </div>
+            </div>
+
             <!-- NOW PLAYING VIEW -->
             <div id="player-ui-view" class="view-section">
                 <img id="large-artwork" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500" alt="Artwork" class="player-artwork-large">
@@ -646,7 +661,7 @@
                     <p id="large-artist">Artist Name</p>
                 </div>
                 <button class="download-btn-large" id="now-playing-download-btn" onclick="downloadCurrentTrack()">
-                    <i class="fa-solid fa-download"></i> Download Song
+                    <i class="fa-solid fa-download"></i> Save to Offline Library
                 </button>
             </div>
 
@@ -691,10 +706,53 @@
         const playBtn = document.getElementById('play-btn');
         const playIcon = document.getElementById('play-icon');
         const trackGrid = document.getElementById('track-grid');
+        const downloadsGrid = document.getElementById('downloads-grid');
         
         let currentPlaylist = [];
         let currentIndex = 0;
         let currentTrackData = null;
+
+        // --- INDEXEDDB SETUP FOR PERMANENT OFFLINE STORAGE ---
+        let db;
+        const dbRequest = indexedDB.open('IsaiifyOfflineDB', 1);
+
+        dbRequest.onupgradeneeded = function(event) {
+            db = event.target.result;
+            if (!db.objectStoreNames.contains('savedSongs')) {
+                db.createObjectStore('savedSongs', { keyPath: 'id', autoIncrement: true });
+            }
+        };
+
+        dbRequest.onsuccess = function(event) {
+            db = event.target.result;
+        };
+
+        dbRequest.onerror = function(event) {
+            console.error("IndexedDB error:", event.target.error);
+        };
+
+        function saveSongToDB(trackObj) {
+            return new Promise((resolve, reject) => {
+                if (!db) return reject("DB not ready");
+                const transaction = db.transaction(['savedSongs'], 'readwrite');
+                const store = transaction.objectStore('savedSongs');
+                const request = store.add(trackObj);
+                request.onsuccess = () => resolve(true);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function getAllSavedSongsFromDB() {
+            return new Promise((resolve, reject) => {
+                if (!db) return resolve([]);
+                const transaction = db.transaction(['savedSongs'], 'readonly');
+                const store = transaction.objectStore('savedSongs');
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+        // -----------------------------------------------------
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedName = localStorage.getItem('isaiify_username');
@@ -748,30 +806,32 @@
             }, 500);
         }
 
-        // Handle local file selection from phone storage
-        function handleLocalFileUpload(event) {
+        // Handle local file selection from phone storage and save permanently
+        async function handleLocalFileUpload(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const localBlobUrl = URL.createObjectURL(file);
                 
-                // Create local track object format
+                // Convert local file to Blob to store safely in IndexedDB
                 const localTrack = {
-                    trackName: file.name.replace(/\.[^/.]+$/, ""), // remove file extension for title
+                    trackName: file.name.replace(/\.[^/.]+$/, ""),
                     artistName: "Local Device File",
                     artworkUrl100: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300",
-                    previewUrl: localBlobUrl
+                    audioBlob: file // Store raw file blob for permanent local retention
                 };
 
-                // Add to current playlist top
-                currentPlaylist.unshift(localTrack);
+                try {
+                    await saveSongToDB(localTrack);
+                } catch (err) {
+                    console.error("Failed to save local song:", err);
+                }
             }
 
-            displayOnlineTracks(currentPlaylist);
-            alert("Local songs imported successfully!");
-            event.target.value = ''; // reset input
+            event.target.value = '';
+            alert("Local songs imported and saved permanently!");
+            loadSavedDownloads();
         }
 
         function displayOnlineTracks(tracks) {
@@ -782,7 +842,7 @@
                 const card = document.createElement('div');
                 card.className = 'music-card';
                 card.innerHTML = `
-                    <div class="card-download-btn" onclick="event.stopPropagation(); downloadTrackDirect('${track.previewUrl}', '${track.trackName.replace(/'/g, "")} - ${track.artistName.replace(/'/g, "")}')" title="Download Song">
+                    <div class="card-action-btn" onclick="event.stopPropagation(); downloadTrackDirect('${track.previewUrl}', '${track.trackName.replace(/'/g, "")}', '${track.artistName.replace(/'/g, "")}', '${artworkUrl}')" title="Save Offline">
                         <i class="fa-solid fa-download"></i>
                     </div>
                     <img src="${artworkUrl}" alt="${track.trackName}">
@@ -791,11 +851,90 @@
                 `;
                 
                 card.onclick = () => {
+                    currentPlaylist = tracks;
                     currentIndex = index;
                     playTrackByIndex(currentIndex);
                 };
                 trackGrid.appendChild(card);
             });
+        }
+
+        // Save online track or local blob into IndexedDB
+        async function downloadTrackDirect(url, trackName, artistName, artworkUrl) {
+            if (!url) {
+                alert("Audio source not available for this track.");
+                return;
+            }
+            try {
+                alert("Saving song to offline downloads library...");
+                const response = await fetch(url);
+                const blob = await response.blob();
+                
+                const savedTrackObj = {
+                    trackName: trackName,
+                    artistName: artistName,
+                    artworkUrl100: artworkUrl,
+                    audioBlob: blob
+                };
+
+                await saveSongToDB(savedTrackObj);
+                alert("Song successfully saved for offline use!");
+                loadSavedDownloads();
+            } catch (err) {
+                console.error("Save failed:", err);
+                alert("Could not save song offline.");
+            }
+        }
+
+        async function loadSavedDownloads() {
+            downloadsGrid.innerHTML = `<div class="loading-text">Loading saved songs...</div>`;
+            try {
+                const savedSongs = await getAllSavedSongsFromDB();
+                if (!savedSongs || savedSongs.length === 0) {
+                    downloadsGrid.innerHTML = `<div class="loading-text">No saved songs found yet. Download or import tracks to see them here!</div>`;
+                    return;
+                }
+
+                downloadsGrid.innerHTML = '';
+                savedSongs.forEach((song, index) => {
+                    const artworkUrl = song.artworkUrl100 || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'music-card';
+                    card.innerHTML = `
+                        <img src="${artworkUrl}" alt="${song.trackName}">
+                        <h4>${song.trackName}</h4>
+                        <p>${song.artistName}</p>
+                    `;
+
+                    card.onclick = () => {
+                        // Create object URL from stored Blob
+                        const blobUrl = URL.createObjectURL(song.audioBlob);
+                        const playlistItem = {
+                            trackName: song.trackName,
+                            artistName: song.artistName,
+                            artworkUrl100: artworkUrl,
+                            previewUrl: blobUrl
+                        };
+                        currentPlaylist = [playlistItem];
+                        currentIndex = 0;
+                        playTrackByIndex(0);
+                    };
+
+                    downloadsGrid.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Error loading downloads:", err);
+                downloadsGrid.innerHTML = `<div class="loading-text">Error loading saved songs.</div>`;
+            }
+        }
+
+        function downloadCurrentTrack() {
+            if (!currentTrackData) {
+                alert("No track currently playing!");
+                return;
+            }
+            downloadTrackDirect(currentTrackData.audio, currentTrackData.name, currentTrackData.artist, currentTrackData.image);
         }
 
         function playTrackByIndex(index) {
@@ -828,40 +967,6 @@
             document.getElementById('large-artwork').src = artworkUrl;
 
             playIcon.className = "fa-solid fa-pause";
-        }
-
-        async function downloadTrackDirect(url, filename) {
-            if (!url) {
-                alert("Download link not available for this track.");
-                return;
-            }
-            try {
-                alert("Downloading song to your Downloads folder...");
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const blobUrl = window.URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = blobUrl;
-                a.download = `${filename}.mp3`;
-                document.body.appendChild(a);
-                a.click();
-                
-                window.URL.revokeObjectURL(blobUrl);
-                document.body.removeChild(a);
-            } catch (err) {
-                console.error("Download failed:", err);
-                window.open(url, '_blank');
-            }
-        }
-
-        function downloadCurrentTrack() {
-            if (!currentTrackData) {
-                alert("No track currently playing!");
-                return;
-            }
-            downloadTrackDirect(currentTrackData.audio, `${currentTrackData.name} - ${currentTrackData.artist}`);
         }
 
         function playNextTrack() {
